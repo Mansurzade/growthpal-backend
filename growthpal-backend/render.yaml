@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: growthpal-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: growthpal-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false   # Render dashboard-dan əlavə et
+
+databases:
+  - name: growthpal-db
+    databaseName: growthpal
+    user: growthpal
