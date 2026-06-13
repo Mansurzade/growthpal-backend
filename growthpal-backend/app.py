@@ -19,8 +19,8 @@ app = Flask(__name__)
 CORS(app, origins="*")
 
 # ── CONFIG ────────────────────────────────────────────────────
-JWT_SECRET  = os.environ.get("JWT_SECRET", "growthpal-deploy-secret-2025")
-JWT_EXPIRE  = 60 * 60 * 24 * 30   # 30 gün
+JWT_SECRET   = os.environ.get("JWT_SECRET", "growthpal-deploy-secret-2025")
+JWT_EXPIRE   = 60 * 60 * 24 * 30
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 GEMINI_KEY   = os.environ.get("GEMINI_API_KEY", "")
 
@@ -256,8 +256,7 @@ def session_end():
     now = datetime.utcnow()
     started = active["started_at"]
     duration_sec = int((now - started).total_seconds())
-    focus_min = duration_sec / 60   # No camera → 100% presence
-    # Fruit calc
+    focus_min = duration_sec / 60
     if focus_min >= 30:   fruit_size, spots = "big", 3
     elif focus_min >= 20: fruit_size, spots = "medium", 2
     elif focus_min >= 10: fruit_size, spots = "small", 1
@@ -268,7 +267,6 @@ def session_end():
               (now, duration_sec, round(focus_min,2), fruit_size, 1 if fruit_size else 0,
                active["session_id"]))
     c.execute("DELETE FROM active_sessions WHERE user_id=%s", (request.user_id,))
-    # Update level
     _update_level(c, request.user_id, spots)
     _update_streak(c, request.user_id, now.date())
     conn.commit(); conn.close()
@@ -358,7 +356,6 @@ def chat():
     lvl = dict(c.fetchone() or {})
     c.execute("SELECT username FROM users WHERE id=%s", (request.user_id,))
     user = c.fetchone()
-    week_ago = datetime.utcnow() - timedelta(days=7)
     c.execute("""SELECT s.focus_min, s.presence_pct, t.name as tag_name, s.started_at
                  FROM sessions s JOIN tags t ON s.tag_id=t.id
                  WHERE s.user_id=%s AND s.is_complete=TRUE
@@ -407,7 +404,13 @@ def _update_streak(c, user_id, today):
     c.execute("UPDATE user_level SET streak_days=%s, last_session_date=%s WHERE user_id=%s",
               (streak, today, user_id))
 
-# ── INIT & RUN ────────────────────────────────────────────────
-if __name__ == "__main__":
+# ── AUTO INIT ON STARTUP ──────────────────────────────────────
+try:
     init_db()
+    print("✓ Database tables ready")
+except Exception as e:
+    print(f"⚠ Database init error: {e}")
+
+# ── RUN ───────────────────────────────────────────────────────
+if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
